@@ -1,7 +1,9 @@
 from tests.helpers import assert_success_200, assert_json_status, get_valid_token, token_headers, signup_user_get_token
 from tests.test_restaurant_resource import test_restaurant_add
+from functools import reduce
 
 import json
+import logging
 
 
 def test_vote_list(client):
@@ -16,7 +18,7 @@ def test_vote_list(client):
     assert not data
 
 
-def test_vote_add(client):
+def _test_vote_add(client):
     token = get_valid_token(client)
     restaurant_id = 1
     th = token_headers(token)
@@ -51,7 +53,21 @@ def _get_user_token(client, userNo: int):
 
 def _get_restaurant(client, restaurantNo: int):
     rname = f'restaurant{restaurantNo}'
-    test_restaurant_add(client,)
+    test_restaurant_add(client)
+
+
+def sum_total_vote_rates(votes):
+    return reduce(
+        (lambda t, vote: t + vote['vote_rate']), votes, 0.)
+
+
+def _get_today_votes(client, token: str):
+    today_votes = client.get(
+        "/api/v1/vote",
+        headers=token_headers(token)
+    )
+    assert_json_status(today_votes, 200)
+    return json.loads(today_votes.data)
 
 
 def _place_vote(client, restaurant_id: int, user_token: str):
@@ -74,29 +90,21 @@ def test_vote_today(client):
     # create test restaurants
     r1 = _get_restaurant(client, 1)
 
-    vote1 = _place_vote(client, 1, u1_token)
-    # assert_vote(vote1, 1, 1, 1.0)
-    vote2 = _place_vote(client, 1, u1_token)
-    # assert_vote(vote2, 1, 1, 0.5)
-    vote3 = _place_vote(client, 1, u1_token)
-    # assert_vote(vote3, 1, 1, 0.25)
-    vote4 = _place_vote(client, 1, u1_token)
-    # assert_vote(vote4, 1, 1, 0.25)
+    _place_vote(client, 1, u1_token)
+    _place_vote(client, 1, u1_token)
+    _place_vote(client, 1, u1_token)
+    _place_vote(client, 1, u1_token)
 
-    today_votes = client.get(
-        "/api/v1/vote",
-        headers=token_headers(u1_token)
-    )
-    assert_json_status(today_votes, 200)
-    votes = json.loads(today_votes.data)
-    assert len(votes) == 4
-    print("votes:", votes)
-    total_rate = 0.
-    for vote in votes:
-        total_rate = total_rate + vote['vote_rate']
-        print(vote)
+    today_votes = _get_today_votes(client, u1_token)
+    assert len(today_votes) == 4
+    assert sum_total_vote_rates(today_votes) == 2.0
 
-    assert total_rate == 2.0
+    _place_vote(client, 1, u2_token)
+    _place_vote(client, 1, u2_token)
+
+    today_votes = _get_today_votes(client, u1_token)
+    assert len(today_votes) == 6
+    assert sum_total_vote_rates(today_votes) == 3.5
 
 
 def assert_vote(actual_vote, restaurant_id, user_id, vote_rate):

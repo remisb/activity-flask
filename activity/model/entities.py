@@ -46,6 +46,13 @@ class VoteModel(db.Model):
     vote_rate = db.Column(db.Float, nullable=False)
     voted_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    # def __init__(self, id: int, user_id: int, restaurant_id: int, vote_rate: float, voted_at: datetime):
+    #     self.id = id
+    #     self.user_id = user_id
+    #     self.restaurant_id = restaurant_id
+    #     self.vote_rate = vote_rate
+    #     self.voted_at = voted_at
+
     @classmethod
     def get_today_votes(cls):
         return cls.query.filter_by(voted_at=id).first()
